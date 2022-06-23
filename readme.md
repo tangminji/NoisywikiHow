@@ -1,32 +1,33 @@
-# 说明
+# NoisyWikihow
 
-## 文件
-+ *enum.py 枚举参数调用sub文件，记录最优参数
-+ *params.py 随机网格搜索参数（个人不推荐，太慢），调用sub文件，记录最优参数
-+ *nrums.py 使用最优参数运行
-+ *sub.py 由调参文件调用，执行一次并返回结果
-+ shell_gen.py 快速生成脚本
-+ cmd_args.py 参数文件
+## Code
++ tm_train_hy_nrums.py  The entry code. Set the Optimal parameters for each methods.
++ tm_main.py            The main training structure. Called by `tm_train_hy_nruns.py`.
++ trainer.py            Different training methods. Called by `tm_main.py`.
++ cmd_args.py           The command arguments.
 
-## 数据
+## Data
 + data
-    + wikihow Noisywikihow输入数据
-        + noisy 噪声输入文件，事先生成. 记录了输入步骤和标签的编号。
-            + 对sym,idn 格式(choosen_id,step_id,cat_id,noisy_label)即（编号，步骤id，类别id，噪声标签），输入时(x,y)用(step_id, noisy_label)
-            + 对mix,tail,uncommon,neighbor 格式(choosen_id,step_id,noisy_id,cat_id)即（编号，步骤id，噪声步骤id，类别id），输入时(x,y)用(noisy_id, cat_id)
-        + embedding 事先生成的各预训练模型的步骤embedding, 可以根据编号获得步骤的embedding
-        + LT 长尾数据集
-        + cat158.csv 158类事件意图标签信息，用于可视化以及t5模型训练
-    + corrupt_index 噪声样本下标，可区分干净噪声样本，用于结果可视化
+    + wikihow           Noisywikihow Dataset
+        + noisy/        The input folder
+            + train.csv                         The clean train data. Format `choosen_id, step_id, cat_id, step, cat`
+            + test.csv                          The clean test data. Format `choosen_id, step_id, cat_id, step, cat`
+            + mix_{0.1,0.2,0.4,0.6}.csv         Noisywikihow train data with noise. Format `choosen_id, step_id, noisy_id, cat_id, step, cat, noisy_step, noisy_cat, noisy_label`.
+                +   Take `(noisy_id, cat_id)` as input.
+            + sym_{0.1,0.2,0.4,0.6}.csv         Train data with symmetric noise. Format `choosen_id,step_id,cat_id,noisy_label,step,cat,noisy_cat`.
+                +   Take `(step_id, noisy_label)` as input.
+            + {tail,uncommon,neighbor}_0.1.csv  Train data with different noise sources. Format is the same as `mix_0.1.csv`.
+        + embedding     Preprocessed step embeddings for each models.
+        + cat158.csv    The choosen 158 event intention classes.
     
-## 运行
-参考运行配置：
-+ bart, tesla_v100-pcie-32gb, batch_size=32, epochs=10, 运行约2.5h
-+ lstm, tesla_v100-pcie-32gb, batch_size=32, epochs=10, 运行约0.25h
+## Running
++ bart, tesla_v100-pcie-32gb, batch_size=32: 2.5h/10epochs
+    + Co-teaching: 4h/10epochs, SEAL run 40epochs
++ lstm, tesla_v100-pcie-32gb, batch_size=32: 0.25h/10epochs
+    + Co-teaching: 0.4h/10epochs, SEAL run 40epochs
 
-特殊的，Co-teaching要训练两个模型（约4h），有些模型在特定情况运行20epoch以充分训练保证达到峰值，SEAL默认运行4轮（40epoch），需适当延长运行时长。
 
-## 运行脚本
+## Shell
 
 ```shell
 #!/bin/bash
@@ -64,19 +65,24 @@ done
 
 ```
 
-可适当修改，运行不同噪声下的各种模型。
+You can change arguments for different experiments.
 
-+ noise_mode 噪声类型，可选['mix'(对应Noisywikihow), 'sym', 'idn', 'tail', 'uncommon', 'neighbor']
-+ noise_rate 噪声率，一般可选[0.0, 0.1, 0.2, 0.4, 0.6], tail最多0.1, uncommon最多0.2
-+ method 鲁棒学习方法，可选['base'(基线),'mixup', 'REWEIGHT'(Data Parameters), 'SR'(Sparse Regularization), 'CT'(Co-teaching), 'SEAL']
-    + 可以在末尾添加'-lstm'使用2层bilstm来获得句子表示，用于后续分类。e.g. 'SR-lstm'
-+ model_type 预训练模型的种类，可选['bert', 'roberta', 'xlnet', 'albert', 'bart', 'gpt2', 't5'], 其中**bart**表现最优
++ noise_mode 
+    + You can choose `['mix'(NoisyWikihow), 'sym', 'tail', 'uncommon', 'neighbor']`
++ noise_rate
+    + For `'mix','sym'`, you can choose `[0.0, 0.1, 0.2, 0.4, 0.6]`.
+    + For `'tail', 'uncommon', 'neighbor'`, you must choose `[0.1]`.
++ method
+    + You can choose `['base'(baseline),'mixup', 'REWEIGHT'(Data Parameters), 'SR'(Sparse Regularization), 'CT'(Co-teaching), 'SEAL']`
+    + You can add `-lstm` at the end to use 2-layer BiLSTM instead of pretrained model to get the sentence representation。e.g. 'SR-lstm'
++ model_type
+    + You can choose `['bert', 'roberta', 'xlnet', 'albert', 'bart', 'gpt2', 't5']`. Model `bart` has the best performance.
 
-## 打包说明
-代码(Noisywikihow的父目录下)：
+## How to Pack data
+Code(Noisywikihow/):
 > `zip -q -r Noisywikihow.zip Noisywikihow -x "Noisywikihow/data/wikihow/*" -x "Noisywikihow/data/corrupt_index/*"`
 
-数据(Noisywikihow/data下)：
+Data(Noisywikihow/data):
 > `zip -q -r data.zip . -x "*.py"`
 
-准备运行前，将data.zip拷贝到Noisywikihow/data下再解压
+Unzip data.zip at Noisywikihow/data before running!

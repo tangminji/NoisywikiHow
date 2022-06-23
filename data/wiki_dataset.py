@@ -262,11 +262,9 @@ def get_wiki_model_and_loss_criterion(args):
     """
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
     # tokenizer = tokenizer_class.from_pretrained(args.model_path[args.model_type], do_lower_case=True)
-    config = config_class.from_pretrained(args.model_path[args.model_type])
+    config = config_class.from_pretrained(args.model_path[args.model_type], num_labels = args.num_class)
     ##############
     print('Loading {}'.format(args.model_type))
-    args.arch = args.model_type
-    config.num_labels = args.num_class
 
     # TODO Note: GPT2 didn't set the pad_token, we can set 'pad_token_id = eos_token_id'
     # https://github.com/huggingface/transformers/issues/3021

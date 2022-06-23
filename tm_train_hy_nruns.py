@@ -1,4 +1,13 @@
-"""Set the Optimal parameters for each methods."""
+"""
+Set the Optimal parameters for each methods.
+This code won't load params from json file, since they use best params.
+
+You can change certain params by passing args in command line.
+
+e.g.
+python tm_train_hy_nruns.py --lr 5e-5
+
+"""
 
 import os
 
