@@ -127,3 +127,30 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# TODO: Add
+
+# IDEA
+.idea/
+
+# Shells
+*.sh
+*.sbatch
+
+# Files
+*.out
+*.err
+output/
+save/
+
+# ipynb notebook
+*.ipynb
+
+# input data
+data/corrupt_index
+data/wikihow
+
+# zipfile
+*.zip
+*.rar
+*.tar
