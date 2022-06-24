@@ -97,10 +97,7 @@ def main(args, params):
     args.noisy_ind = np.array(noisy_ind)
     args.clean_ind = np.array(clean_ind)
 
-    train_length = len(train_loader.dataset)
-
     # update perturb variance, dynamic sigma for each sample
-    # 暂时未写入文件保存
     parameters = list(filter(lambda x: x.requires_grad, net.parameters()))
 
     cudnn.benchmark = True
@@ -141,7 +138,6 @@ def main(args, params):
             forget_rate=args.noise_rate
         else:
             forget_rate=args.forget_rate
-        # TODO 总共epoch轮，没必要+1
         rate_schedule = np.ones(args.epochs)*forget_rate # max: forget_rate
         rate_schedule[:args.ct_num_gradual] = np.linspace(0, forget_rate**args.exponent, args.ct_num_gradual) # linear
     
@@ -226,7 +222,7 @@ def main(args, params):
             if 'SEAL' in args.exp_name:
                 softmax_out_avg += get_softmax_out(args, net, softmax_loader)
             if 'SR' in args.exp_name:
-                if args.freq>0 and epoch % args.freq == 0: # 启用lambda缓慢更新
+                if args.freq>0 and epoch % args.freq == 0: # every 'freq' epochs, update 'lambda' once by 'rho' 
                     criterion.update_lamb(args.rho)
 
         # Testing
@@ -244,11 +240,13 @@ def main(args, params):
         if test_acc5 > test_best5:
             test_best5 = test_acc5
 
-        if epoch == 0: # 还没训练
+        # epoch 0: Test only, havn't train yet
+        if epoch == 0:
             continue
         res_lst.append((train_acc1, train_acc5, test_acc1, test_acc5, train_loss, test_loss))
 
-        # data parameter 记录
+        # Logging
+        # data parameter
         if 'REWEIGHT' in args.exp_name:
             if len(noisy_ind) > 0:
                 log_stats(data=torch.exp(inst_parameters[noisy_ind]),

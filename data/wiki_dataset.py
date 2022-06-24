@@ -202,44 +202,54 @@ class WikiDataSetSoft(Dataset):
     def __len__(self):
         return len(self.y)
 
+tokenizer = None
+def get_wiki_tokenizer(args):
+    global tokenizer
+    if not tokenizer:
+        print(f"Loading the tokenizer for {args.model_type}")
+        # We have changed steps and intention label into lower cased.
+        tokenizer = MODEL_CLASSES[args.model_type][2].from_pretrained(tokenizer_list[args.model_type], do_lower_case=True)
+        if args.model_type == 'gpt2':
+            tokenizer.pad_token = tokenizer.eos_token
+        print("tokenizer prepared")
+    return tokenizer
+
+
 def get_wiki_train_and_val_loader(args):
+    tokenizer = get_wiki_tokenizer(args)
     print('==> Preparing data for sst..')
     test_csv = pd.read_csv(f"{args.data_path}/noisy/test.csv")
-    data = torch.load(f"{args.data_path}/embedding/{args.model_type}.pt")
-    test_step = test_csv["step_id"].to_list()
-    test_step = {k:v[test_step] for k,v in data.items()}
+    test_step = tokenizer(test_csv["step"].to_list(), padding='max_length', truncation=True, max_length=128, return_tensors='pt')
     test_cat = test_csv["cat_id"].to_list()
 
     if args.noise_rate!=0:
         train_csv = pd.read_csv(f"{args.data_path}/noisy/{args.noise_mode}_{args.noise_rate:.1f}.csv")
         train_step = train_csv["step_id"].to_list()
-        train_cat = train_csv["cat_id"].to_list() 
+        train_cat = train_csv["cat_id"].to_list()
+        train_num = len(train_cat) 
         # Noise on feature:  train(x_noisy, y)
         if 'noisy_id' in train_csv:
             train_noisy = train_csv["noisy_id"].to_list()
-            noisy_ind = [i for i in range(len(train_step)) if train_step[i]!=train_noisy[i]]
-            clean_ind = [i for i in range(len(train_step)) if train_step[i]==train_noisy[i]]
-            train_noisy = {k:v[train_noisy] for k,v in data.items()}
-
+            noisy_ind = [i for i in range(train_num) if train_step[i]!=train_noisy[i]]
+            clean_ind = [i for i in range(train_num) if train_step[i]==train_noisy[i]]
+            train_noisy = tokenizer(train_csv["noisy_step"].to_list(), padding='max_length', truncation=True, max_length=128, return_tensors='pt')
             trainset = WikiDataSet(train_noisy, train_cat)
 
         # Noise on label:  train(x, y_noisy)
         else:
             noisy_y = train_csv["noisy_label"].to_list()
-            noisy_ind = [i for i in range(len(train_step)) if train_cat[i]!=noisy_y[i]]
-            clean_ind = [i for i in range(len(train_step)) if train_cat[i]==noisy_y[i]]
-            train_step = {k:v[train_step] for k,v in data.items()}
-            
+            noisy_ind = [i for i in range(train_num) if train_cat[i]!=noisy_y[i]]
+            clean_ind = [i for i in range(train_num) if train_cat[i]==noisy_y[i]]
+            train_step = tokenizer(train_csv["step"].to_list(), padding='max_length', truncation=True, max_length=128, return_tensors='pt')
             trainset = WikiDataSet(train_step, noisy_y)
 
     else:
         train_csv = pd.read_csv(f"{args.data_path}/noisy/train.csv")
-        train_step = train_csv["step_id"].to_list()
-        noisy_ind = []
-        clean_ind = list(range(len(train_step)))
-        train_step = {k:v[train_step] for k,v in data.items()}
+        train_step = tokenizer(train_csv["step"].to_list(), padding='max_length', truncation=True, max_length=128, return_tensors='pt')
         train_cat = train_csv["cat_id"].to_list()
-
+        train_num = len(train_cat)
+        noisy_ind = []
+        clean_ind = list(range(train_num))
         trainset = WikiDataSet(train_step, train_cat)
 
     
@@ -286,9 +296,9 @@ def get_wiki_model_and_loss_criterion(args):
     return model, criterion, criterion_val
 
 def get_wiki_tokenizer_and_label(args):
-    config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
-    tokenizer = tokenizer_class.from_pretrained(args.model_path[args.model_type], do_lower_case=True)
-    cat = pd.read_csv(f'{args.data_path}/cat158.csv')['category'].map(lambda x:x.lower()).to_list() # 全小写
+    tokenizer = get_wiki_tokenizer(args)
+    # Do lower case for labels, make it easier to match up
+    cat = pd.read_csv(f'{args.data_path}/cat158.csv')['category'].map(lambda x:x.lower()).to_list()
     cat_token = tokenizer(cat, padding='max_length', max_length=15, truncation=True, return_tensors='pt')['input_ids'].to(args.device)
     cat_labels = tokenizer.batch_decode(cat_token, skip_special_tokens=True, clean_up_tokenization_spaces=True)
     cat_token[cat_token==tokenizer.pad_token_id]=-100

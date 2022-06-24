@@ -5,6 +5,7 @@
 + tm_main.py            The main training structure. Called by `tm_train_hy_nruns.py`.
 + trainer.py            Different training methods. Called by `tm_main.py`.
 + cmd_args.py           The command arguments.
++ data/wiki_dataset.py  Dataloader and Models for experiments.
 
 ## Data
 + data
@@ -13,9 +14,9 @@
             + train.csv                         The clean train data. Format `choosen_id, step_id, cat_id, step, cat`
             + test.csv                          The clean test data. Format `choosen_id, step_id, cat_id, step, cat`
             + mix_{0.1,0.2,0.4,0.6}.csv         Noisywikihow train data with noise. Format `choosen_id, step_id, noisy_id, cat_id, step, cat, noisy_step, noisy_cat, noisy_label`.
-                +   Take `(noisy_id, cat_id)` as input.
-            + sym_{0.1,0.2,0.4,0.6}.csv         Train data with symmetric noise. Format `choosen_id,step_id,cat_id,noisy_label,step,cat,noisy_cat`.
-                +   Take `(step_id, noisy_label)` as input.
+                +   Take `(noisy_step, cat_id)` as input.
+            + sym_{0.1,0.2,0.4,0.6}.csv         Train data with symmetric noise. Format `choosen_id, step_id, cat_id, noisy_label, step, cat, noisy_cat`.
+                +   Take `(step, noisy_label)` as input.
             + {tail,uncommon,neighbor}_0.1.csv  Train data with different noise sources. Format is the same as `mix_0.1.csv`.
         + embedding     Preprocessed step embeddings for each models.
         + cat158.csv    The choosen 158 event intention classes.
@@ -80,9 +81,9 @@ You can change arguments for different experiments.
 
 ## How to Pack data
 Code(Noisywikihow/):
-> `zip -q -r Noisywikihow.zip Noisywikihow -x "Noisywikihow/data/wikihow/*" -x "Noisywikihow/data/corrupt_index/*"`
+> `zip -q -r Noisywikihow.zip Noisywikihow -x "Noisywikihow/data/wikihow/*"`
 
 Data(Noisywikihow/data):
 > `zip -q -r data.zip . -x "*.py"`
 
-Unzip data.zip at Noisywikihow/data before running!
+Unzip data.zip at `Noisywikihow/data` before running!
