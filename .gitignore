@@ -148,9 +148,9 @@ save/
 
 # input data
 data/corrupt_index
-data/wikihow
 
 # zipfile
 *.zip
 *.rar
 *.tar
+*.pt
