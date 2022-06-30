@@ -296,6 +296,7 @@ def get_wiki_model_and_loss_criterion(args):
     return model, criterion, criterion_val
 
 def get_wiki_tokenizer_and_label(args):
+    print('Prepare tokenizer and label for {}'.format(args.model_type))
     tokenizer = get_wiki_tokenizer(args)
     # Do lower case for labels, make it easier to match up
     cat = pd.read_csv(f'{args.data_path}/cat158.csv')['category'].map(lambda x:x.lower()).to_list()

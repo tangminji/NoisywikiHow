@@ -542,7 +542,7 @@ def train_t5(args, model, loader, optimizer, criterion, global_iter, epoch, toke
             log_intermediate_iteration_stats(epoch, global_iter, train_loss, top1=correct1, top5=correct5)
     
     log_value('train/loss', train_loss.avg, step=epoch)
-    log(args.logpath, 'Time for Train-Epoch-{}/{}:{:.1f}s Acc1:{}, Acc5:{}, Loss:{}\n'.
+    log(args.logpath, 'T5 Time for Train-Epoch-{}/{}:{:.1f}s Acc1:{}, Acc5:{}, Loss:{}\n'.
         format(epoch, args.epochs, time.time() - t0, correct1.avg, correct5.avg, train_loss.avg))
     return global_iter, train_loss.avg, correct1.avg, correct5.avg
 
@@ -596,7 +596,7 @@ def validate_t5(args, model, loader, criterion, epoch, tokenizer, cat_token, cat
             acc1, acc5 = compute_top5(true, text)
             correct1.update(acc1, target.size(0))
             correct5.update(acc5, target.size(0))
-    log(args.logpath, 'Time for {}-Epoch-{}/{}:{:.1f}s Acc1:{}, Acc5:{}, Loss:{}\n'.format(mode.capitalize(),
+    log(args.logpath, 'T5 Time for {}-Epoch-{}/{}:{:.1f}s Acc1:{}, Acc5:{}, Loss:{}\n'.format(mode.capitalize(),
                                                                                       epoch, args.epochs,
                                                                                       time.time() - t0,
                                                                                       correct1.avg, correct5.avg,
