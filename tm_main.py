@@ -92,6 +92,7 @@ def main(args, params):
     net, criterion, criterion_val = mdl_loss(args)
 
     train_loader, test_loader, noisy_ind, clean_ind = loaders(args)
+    train_length = len(train_loader.dataset)
 
     # TODO noisy_index, clean_index, numpy format
     args.noisy_ind = np.array(noisy_ind)
@@ -118,7 +119,7 @@ def main(args, params):
         optimizer_class_param, optimizer_inst_param) = get_class_inst_data_params_n_optimizer(
                                                             args=args,
                                                             nr_classes=args.num_class,
-                                                            nr_instances=len(train_loader.dataset),
+                                                            nr_instances=train_length,
                                                             device='cuda'
                                                             )
         config = {}
@@ -145,7 +146,7 @@ def main(args, params):
     if 'SEAL' in args.exp_name:
         # loader for get predictions on train set
         softmax_loader = DataLoader(train_loader.dataset,batch_size=args.test_batch_size, shuffle=False)
-        softmax_out_avg = torch.zeros([len(train_loader.dataset), args.num_class]) #torch:float32
+        softmax_out_avg = torch.zeros([train_length, args.num_class]) #torch:float32
 
     # MIXUP
     if 'MIXUP' in args.exp_name:
@@ -154,6 +155,24 @@ def main(args, params):
     # SR
     if 'SR' in args.exp_name:
         criterion = SRLoss(criterion=criterion, lamb=args.lamb, tau=args.tau, p=args.normp, reduction='none')
+
+    # STGN
+    if 'STGN' in args.exp_name:
+        #update perturb variance, dynamic sigma for each sample
+        args.sigma_dyn = torch.tensor([args.sigma]*train_length,
+                            dtype=torch.float32,
+                            requires_grad=False,
+                            device=args.device)
+        args.prev_acc = torch.tensor(np.zeros(train_length),
+                            dtype=torch.long,
+                            requires_grad=False,
+                            device=args.device)
+        args.forgetting = torch.tensor(np.zeros(train_length),
+                                    dtype=torch.long,
+                                    requires_grad=False,
+                                    device=args.device)
+        args.drop_rate_schedule = np.ones(args.epochs) * args.noise_rate
+        args.drop_rate_schedule[:args.num_gradual] = np.linspace(0, args.noise_rate, args.num_gradual)
 
     # TODO Other Methods
 
@@ -187,7 +206,7 @@ def main(args, params):
                     train_soft_dataset = WikiDataSetSoft(train_loader.dataset, softmax_out_avg)
                     print(f"Generate new softloader at epoch {epoch}")
                     train_soft_loader = DataLoader(train_soft_dataset, batch_size=args.batch_size,shuffle=True)
-                    softmax_out_avg = torch.zeros([len(train_loader.dataset), args.num_class])
+                    softmax_out_avg = torch.zeros([train_length, args.num_class])
                 global_iter, train_loss, train_acc1, train_acc5 = \
                     train_soft(args, net, train_soft_loader, optimizer, criterion, global_iter, epoch)
 
