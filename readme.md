@@ -15,7 +15,7 @@
             + val_test.csv                      The clean validation and test data, will split into `val.csv`, `test.csv`
             + val.csv                           The clean validation data. Format `choosen_id, step_id, cat_id, step, cat`
             + test.csv                          The clean test data. Format `choosen_id, step_id, cat_id, step, cat`
-            + mix_{0.1,0.2,0.4,0.6}.csv         Noisywikihow train data with noise. Format `choosen_id, step_id, noisy_id, cat_id, step, cat, noisy_step, noisy_cat, noisy_label`.
+            + mix_{0.1,0.2,0.4,0.6}.csv         NoisywikiHow Train data with noise. Format `choosen_id, step_id, noisy_id, cat_id, step, cat, noisy_step, noisy_cat, noisy_label`.
                 +   Take `(noisy_id, cat_id)` as input.
             + sym_{0.1,0.2,0.4,0.6}.csv         Train data with symmetric noise. Format `choosen_id,step_id,cat_id,noisy_label,step,cat,noisy_cat`.
                 +   Take `(step_id, noisy_label)` as input.
@@ -73,7 +73,7 @@ python tm_train_hy_nruns.py \
   --noise_rate $noise_rate \
   --model_type $model_type \
   --seed $i \
-  --exp_name ../Noisywikihow_output/$noise_mode/nrun/$model_type/wiki_$method/nr$noise_rate/seed$i \
+  --exp_name ../NoisywikiHow_output/$noise_mode/nrun/$model_type/wiki_$method/nr$noise_rate/seed$i \
   --params_path best_params$method$noise_mode$noise_rate$model_type.json \
   --out_tmp wiki_out_tmp$method$noise_mode$noise_rate$model_type.json \
   --sub_script sbatch_wiki_hy_sub$method$noise_mode$noise_rate$model_type.sh
@@ -84,7 +84,7 @@ done
 You can change arguments for different experiments.
 
 + noise_mode 
-    + You can choose `['mix'(NoisyWikihow), 'sym', 'tail', 'uncommon', 'neighbor']`
+    + You can choose `['mix'(NoisyWikiHow), 'sym', 'tail', 'uncommon', 'neighbor']`
 + noise_rate
     + For `'mix','sym'`, you can choose `[0.0, 0.1, 0.2, 0.4, 0.6]`.
     + For `'tail', 'uncommon', 'neighbor'`, you must choose `[0.1]`.

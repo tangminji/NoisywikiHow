@@ -1,3 +1,3 @@
 [submodule "data/wikihow"]
 	path = data/wikihow
-	url = https://github.com/tangminji/Noisywikihow-dataset.git
+	url = https://github.com/tangminji/NoisywikiHow-dataset.git
