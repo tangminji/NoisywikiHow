@@ -218,6 +218,10 @@ def get_wiki_tokenizer(args):
 def get_wiki_train_and_val_loader(args):
     tokenizer = get_wiki_tokenizer(args)
     print('==> Preparing data for sst..')
+    val_csv = pd.read_csv(f"{args.data_path}/noisy/val.csv")
+    val_step = tokenizer(val_csv["step"].to_list(), padding='max_length', truncation=True, max_length=128, return_tensors='pt')
+    val_cat = val_csv["cat_id"].to_list()
+
     test_csv = pd.read_csv(f"{args.data_path}/noisy/test.csv")
     test_step = tokenizer(test_csv["step"].to_list(), padding='max_length', truncation=True, max_length=128, return_tensors='pt')
     test_cat = test_csv["cat_id"].to_list()
@@ -252,13 +256,14 @@ def get_wiki_train_and_val_loader(args):
         clean_ind = list(range(train_num))
         trainset = WikiDataSet(train_step, train_cat)
 
-    
+    valset = WikiDataSet(val_step, val_cat)
     testset = WikiDataSet(test_step, test_cat)
 
     train_loader = DataLoader(trainset, batch_size=args.batch_size, shuffle=True)
+    val_loader = DataLoader(valset, batch_size=args.test_batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=args.test_batch_size, shuffle=False)
 
-    return train_loader, test_loader, noisy_ind, clean_ind
+    return train_loader, val_loader, test_loader, noisy_ind, clean_ind
 
 def get_wiki_model_and_loss_criterion(args):
     """Initializes DNN model and loss function.
