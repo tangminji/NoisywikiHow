@@ -91,7 +91,8 @@ def main(args, params):
     # Create model
     net, criterion, criterion_val = mdl_loss(args)
 
-    train_loader, test_loader, noisy_ind, clean_ind = loaders(args)
+    train_loader, val_loader, test_loader, noisy_ind, clean_ind = loaders(args)
+    train_length = len(train_loader.dataset)
 
     # TODO noisy_index, clean_index, numpy format
     args.noisy_ind = np.array(noisy_ind)
@@ -108,8 +109,13 @@ def main(args, params):
     global_iter = 0
     global test_best1
     global test_best5
+    global val_best1, val_best5, test_at_best1, test_at_best5
     test_best1 = 0
     test_best5 = 0
+    val_best1 = 0
+    val_best5 = 0
+    test_at_best1 = 0
+    test_at_best5 = 0
     res_lst = []
 
     # Data parameter
@@ -118,7 +124,7 @@ def main(args, params):
         optimizer_class_param, optimizer_inst_param) = get_class_inst_data_params_n_optimizer(
                                                             args=args,
                                                             nr_classes=args.num_class,
-                                                            nr_instances=len(train_loader.dataset),
+                                                            nr_instances=train_length,
                                                             device='cuda'
                                                             )
         config = {}
@@ -145,7 +151,7 @@ def main(args, params):
     if 'SEAL' in args.exp_name:
         # loader for get predictions on train set
         softmax_loader = DataLoader(train_loader.dataset,batch_size=args.test_batch_size, shuffle=False)
-        softmax_out_avg = torch.zeros([len(train_loader.dataset), args.num_class]) #torch:float32
+        softmax_out_avg = torch.zeros([train_length, args.num_class]) #torch:float32
 
     # MIXUP
     if 'MIXUP' in args.exp_name:
@@ -155,12 +161,31 @@ def main(args, params):
     if 'SR' in args.exp_name:
         criterion = SRLoss(criterion=criterion, lamb=args.lamb, tau=args.tau, p=args.normp, reduction='none')
 
+    # STGN
+    if 'STGN' in args.exp_name:
+        #update perturb variance, dynamic sigma for each sample
+        args.sigma_dyn = torch.tensor([args.sigma]*train_length,
+                            dtype=torch.float32,
+                            requires_grad=False,
+                            device=args.device)
+        args.prev_acc = torch.tensor(np.zeros(train_length),
+                            dtype=torch.long,
+                            requires_grad=False,
+                            device=args.device)
+        args.forgetting = torch.tensor(np.zeros(train_length),
+                                    dtype=torch.long,
+                                    requires_grad=False,
+                                    device=args.device)
+        args.drop_rate_schedule = np.ones(args.epochs) * args.noise_rate
+        args.drop_rate_schedule[:args.num_gradual] = np.linspace(0, args.noise_rate, args.num_gradual)
+
     # TODO Other Methods
 
     # show result only
     if args.show_result:
         show_train_loader = DataLoader(train_loader.dataset,batch_size=args.test_batch_size, shuffle=False)
         save_data(args, net, show_train_loader,criterion_val, mode='train')
+        save_data(args, net, val_loader, criterion_val, mode='val')
         save_data(args, net, test_loader, criterion_val, mode='test')
         return
 
@@ -187,7 +212,7 @@ def main(args, params):
                     train_soft_dataset = WikiDataSetSoft(train_loader.dataset, softmax_out_avg)
                     print(f"Generate new softloader at epoch {epoch}")
                     train_soft_loader = DataLoader(train_soft_dataset, batch_size=args.batch_size,shuffle=True)
-                    softmax_out_avg = torch.zeros([len(train_loader.dataset), args.num_class])
+                    softmax_out_avg = torch.zeros([train_length, args.num_class])
                 global_iter, train_loss, train_acc1, train_acc5 = \
                     train_soft(args, net, train_soft_loader, optimizer, criterion, global_iter, epoch)
 
@@ -228,22 +253,34 @@ def main(args, params):
         # Testing
         # t5 validate
         if args.model_type == 't5':
+            val_loss, val_acc1, val_acc5 = validate_t5(args, net, val_loader, criterion_val, epoch, tokenizer, cat_token, cat_labels, mode='val')
             test_loss, test_acc1, test_acc5 = validate_t5(args, net, test_loader, criterion_val, epoch, tokenizer, cat_token, cat_labels, mode='test')
         else:
+            val_loss, val_acc1, val_acc5 = validate(args, net, val_loader, criterion_val, epoch,
+                                                    mode='val')
             test_loss, test_acc1, test_acc5 = validate(args, net, test_loader, criterion_val, epoch,
                                                     mode='test')
 
         # Save checkpoint.
+        if val_acc1 > val_best1:
+            val_best1 = val_acc1
+            test_at_best1 = test_acc1
+            test_at_best5 = test_acc5
+            torch.save(net.state_dict(), os.path.join(args.save_dir, 'net.pt'))
+        
+        if val_acc5 > val_best5:
+            val_best5 = val_acc5
+        
         if test_acc1 > test_best1:
             test_best1 = test_acc1
-            torch.save(net.state_dict(), os.path.join(args.save_dir, 'net.pt'))
+            
         if test_acc5 > test_best5:
             test_best5 = test_acc5
 
         # epoch 0: Test only, havn't train yet
         if epoch == 0:
             continue
-        res_lst.append((train_acc1, train_acc5, test_acc1, test_acc5, train_loss, test_loss))
+        res_lst.append((train_acc1, train_acc5, val_acc1, val_acc5, test_acc1, test_acc5, train_loss, val_loss, test_loss))
 
         # Logging
         # data parameter
@@ -267,16 +304,16 @@ def main(args, params):
         logwriter.writerows(res_lst)
 
     # The performance on last five epochs
-    stable_acc1 = sum([x[2] for x in res_lst[-5:]]) / 5
-    stable_acc5 = sum([x[3] for x in res_lst[-5:]]) / 5
+    stable_acc1 = sum([x[5] for x in res_lst[-5:]]) / 5
+    stable_acc5 = sum([x[6] for x in res_lst[-5:]]) / 5
 
     # Val_best Test_at_val_best Stable_test_acc
     with open(os.path.join(args.log_dir, 'best_results.txt'), 'w') as outfile:
-        outfile.write(f'{test_best1}\t{test_best5}\t{stable_acc1}\t{stable_acc5}')
-    log(args.logpath, '\nBest Acc1: {}\t Best Acc5: {}\t Stable Acc1:{}\t Stable Acc5:{}'.format(test_best1,test_best5,stable_acc1,stable_acc5))
+        outfile.write(f'{test_at_best1}\t{test_at_best5}\t{test_best1}\t{test_best5}\t{stable_acc1}\t{stable_acc5}')
+    log(args.logpath, '\nTest Acc:\nAt Best Val:\t Acc1: {}\t Acc5: {}\nAt Best Test:\t Acc1: {}\t  Acc5: {}\n Stable:\t Acc1: {}\t Acc5: {}'.format(test_at_best1, test_at_best5, test_best1, test_best5, stable_acc1, stable_acc5))
     log(args.logpath, '\nTotal Time: {:.1f}s.\n'.format(run_time))
 
     loss = - test_best1
-    return {'loss': loss, 'test_at_best_top1': test_best1, 'test_at_best_top5': test_best5,
+    return {'loss': loss, 'test_at_best_top1': test_at_best1, 'test_at_best_top5': test_at_best5, 'test_top1': test_best1, 'test_top5':  test_best5,
             'stable_acc_top1': stable_acc1, 'stable_acc_top5': stable_acc5,
             'params': params, 'train_time': run_time, 'status': STATUS_OK}

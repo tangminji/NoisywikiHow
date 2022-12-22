@@ -1,4 +1,4 @@
-# NoisyWikihow
+# NoisywikiHow
 
 ## Code
 + tm_train_hy_nrums.py  The entry code. Set the Optimal parameters for each methods.
@@ -9,17 +9,19 @@
 
 ## Data
 + data
-    + wikihow           Noisywikihow Dataset
+    + wikihow           NoisywikiHow Dataset
         + noisy/        The input folder
             + train.csv                         The clean train data. Format `choosen_id, step_id, cat_id, step, cat`
+            + val_test.csv                      The clean validation and test data, will split into `val.csv`, `test.csv`
+            + val.csv                           The clean validation data. Format `choosen_id, step_id, cat_id, step, cat`
             + test.csv                          The clean test data. Format `choosen_id, step_id, cat_id, step, cat`
-            + mix_{0.1,0.2,0.4,0.6}.csv         Noisywikihow train data with noise. Format `choosen_id, step_id, noisy_id, cat_id, step, cat, noisy_step, noisy_cat, noisy_label`.
-                +   Take `(noisy_step, cat_id)` as input.
-            + sym_{0.1,0.2,0.4,0.6}.csv         Train data with symmetric noise. Format `choosen_id, step_id, cat_id, noisy_label, step, cat, noisy_cat`.
-                +   Take `(step, noisy_label)` as input.
+            + mix_{0.1,0.2,0.4,0.6}.csv         NoisywikiHow Train data with noise. Format `choosen_id, step_id, noisy_id, cat_id, step, cat, noisy_step, noisy_cat, noisy_label`.
+                +   Take `(noisy_id, cat_id)` as input.
+            + sym_{0.1,0.2,0.4,0.6}.csv         Train data with symmetric noise. Format `choosen_id,step_id,cat_id,noisy_label,step,cat,noisy_cat`.
+                +   Take `(step_id, noisy_label)` as input.
             + {tail,uncommon,neighbor}_0.1.csv  Train data with different noise sources. Format is the same as `mix_0.1.csv`.
-        + embedding     Preprocessed step embeddings for each models.
         + cat158.csv    The choosen 158 event intention classes.
+        + split_val_test.py     The code for splitting val set and test set.
 
 ### Fields description
 
@@ -71,7 +73,7 @@ python tm_train_hy_nruns.py \
   --noise_rate $noise_rate \
   --model_type $model_type \
   --seed $i \
-  --exp_name ../Noisywikihow_output/$noise_mode/nrun/$model_type/wiki_$method/nr$noise_rate/seed$i \
+  --exp_name ../NoisywikiHow_output/$noise_mode/nrun/$model_type/wiki_$method/nr$noise_rate/seed$i \
   --params_path best_params$method$noise_mode$noise_rate$model_type.json \
   --out_tmp wiki_out_tmp$method$noise_mode$noise_rate$model_type.json \
   --sub_script sbatch_wiki_hy_sub$method$noise_mode$noise_rate$model_type.sh
@@ -82,7 +84,7 @@ done
 You can change arguments for different experiments.
 
 + noise_mode 
-    + You can choose `['mix'(NoisyWikihow), 'sym', 'tail', 'uncommon', 'neighbor']`
+    + You can choose `['mix'(NoisyWikiHow), 'sym', 'tail', 'uncommon', 'neighbor']`
 + noise_rate
     + For `'mix','sym'`, you can choose `[0.0, 0.1, 0.2, 0.4, 0.6]`.
     + For `'tail', 'uncommon', 'neighbor'`, you must choose `[0.1]`.
@@ -91,12 +93,3 @@ You can change arguments for different experiments.
     + You can add `-lstm` at the end to use 2-layer BiLSTM instead of pretrained model to get the sentence representation。e.g. 'SR-lstm'
 + model_type
     + You can choose `['bert', 'roberta', 'xlnet', 'albert', 'bart', 'gpt2', 't5']`. Model `bart` has the best performance.
-
-## How to Pack data
-Code(Noisywikihow/):
-> `zip -q -r Noisywikihow.zip Noisywikihow -x "Noisywikihow/data/wikihow/*"`
-
-Data(Noisywikihow/data):
-> `zip -q -r data.zip . -x "*.py"`
-
-Unzip data.zip at `Noisywikihow/data` before running!

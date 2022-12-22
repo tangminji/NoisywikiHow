@@ -154,3 +154,6 @@ data/corrupt_index
 *.rar
 *.tar
 *.pt
+
+# unused file
+unused/
