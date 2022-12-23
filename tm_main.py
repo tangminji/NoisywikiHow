@@ -161,24 +161,6 @@ def main(args, params):
     if 'SR' in args.exp_name:
         criterion = SRLoss(criterion=criterion, lamb=args.lamb, tau=args.tau, p=args.normp, reduction='none')
 
-    # STGN
-    if 'STGN' in args.exp_name:
-        #update perturb variance, dynamic sigma for each sample
-        args.sigma_dyn = torch.tensor([args.sigma]*train_length,
-                            dtype=torch.float32,
-                            requires_grad=False,
-                            device=args.device)
-        args.prev_acc = torch.tensor(np.zeros(train_length),
-                            dtype=torch.long,
-                            requires_grad=False,
-                            device=args.device)
-        args.forgetting = torch.tensor(np.zeros(train_length),
-                                    dtype=torch.long,
-                                    requires_grad=False,
-                                    device=args.device)
-        args.drop_rate_schedule = np.ones(args.epochs) * args.noise_rate
-        args.drop_rate_schedule[:args.num_gradual] = np.linspace(0, args.noise_rate, args.num_gradual)
-
     # TODO Other Methods
 
     # show result only
