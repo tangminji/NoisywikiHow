@@ -83,6 +83,11 @@ parser.add_argument('--forget_rate', type = float, help = 'forget rate', default
 # TODO SEAL
 parser.add_argument('--round', default=4, type=int, help="epochs in one SEAL iteration")
 
+# TODO CNLCU
+parser.add_argument('--co_lambda', type=float, help='sigma^2 or tau_min', default=1e-1)
+parser.add_argument('--epoch_decay_start', type=int, default=80)
+parser.add_argument('--time_step', type=int, help='time_step', default=5)
+
 # Show result from old model. Don't train a new model
 parser.add_argument('--show_result',action='store_true',help='show test result only')
 

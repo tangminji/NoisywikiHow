@@ -17,7 +17,7 @@ from hyperopt import STATUS_OK
 import csv
 
 from trainer import validate, train_others, train_soft, train_ct, \
-    train_for_one_epoch, get_softmax_out, train_mixup, train_t5, validate_t5
+    train_for_one_epoch, get_softmax_out, train_mixup, train_t5, validate_t5, train_cnlcu
 from common.utils import get_class_inst_data_params_n_optimizer
 from torch.utils.data import DataLoader
 
@@ -136,7 +136,7 @@ def main(args, params):
         config['clamp_cls_sigma']['max'] = np.log(20)
 
     # Co-teaching
-    if 'CT' in args.exp_name:
+    if 'CT' in args.exp_name or 'CNLCU' in args.exp_name:
         net2, criterion2, _ = mdl_loss(args)
         parameters = list(filter(lambda x: x.requires_grad, net2.parameters()))
         optimizer2 = torch.optim.AdamW(parameters, lr=args.lr)
@@ -161,25 +161,16 @@ def main(args, params):
     if 'SR' in args.exp_name:
         criterion = SRLoss(criterion=criterion, lamb=args.lamb, tau=args.tau, p=args.normp, reduction='none')
 
-    # STGN
-    if 'STGN' in args.exp_name:
-        #update perturb variance, dynamic sigma for each sample
-        args.sigma_dyn = torch.tensor([args.sigma]*train_length,
-                            dtype=torch.float32,
-                            requires_grad=False,
-                            device=args.device)
-        args.prev_acc = torch.tensor(np.zeros(train_length),
-                            dtype=torch.long,
-                            requires_grad=False,
-                            device=args.device)
-        args.forgetting = torch.tensor(np.zeros(train_length),
-                                    dtype=torch.long,
-                                    requires_grad=False,
-                                    device=args.device)
-        args.drop_rate_schedule = np.ones(args.epochs) * args.noise_rate
-        args.drop_rate_schedule[:args.num_gradual] = np.linspace(0, args.noise_rate, args.num_gradual)
-
     # TODO Other Methods
+    if 'CNLCU' in args.exp_name:
+        # ? 为0应该就无法区分了
+        args.co_lambda_plan = np.zeros(args.epochs)
+        gradient_range = min(args.epoch_decay_start, args.epochs)
+        args.co_lambda_plan[:gradient_range] = args.co_lambda * np.linspace(1, 0, gradient_range)
+        noise_or_not = np.ones(train_length)
+        noise_or_not[noisy_ind] = 0 
+        # The CNLCU implement: (1 for clean, 0 for )
+        #   noise_or_not = np.transpose(self.train_labels)==np.transpose(self.train_labels_o) 
 
     # show result only
     if args.show_result:
@@ -219,6 +210,32 @@ def main(args, params):
             elif 'CT' in args.exp_name:
                 global_iter, train_loss, train_acc1, train_acc5 = \
                     train_ct(args, net, net2, optimizer, optimizer2, criterion, criterion2, train_loader, global_iter, epoch, p_keep=1-rate_schedule[epoch-1]) 
+            # ICLR22
+            elif 'CNLCU' in args.exp_name:
+                if epoch % args.time_step == 1:
+                    print('Time step initializing...')
+                    before_loss_1 = 0.0 * np.ones((train_length, 1))
+                    before_loss_2 = 0.0 * np.ones((train_length, 1))
+                    sn_1 = torch.from_numpy(np.ones((train_length, 1)))
+                    sn_2 = torch.from_numpy(np.ones((train_length, 1)))
+                    # args, model1, model2, optimizer1, optimizer2, criterion1, criterion2, loader, global_iter, epoch, before_loss_1, before_loss_2, sn_1, sn_2, noise_or_not, forget_rate
+                global_iter, train_loss, train_acc1, train_acc5, before_loss_1_list, before_loss_2_list, ind_1_update_list, ind_2_update_list= train_cnlcu(args, net, net2, optimizer, optimizer2, train_loader, global_iter, epoch, before_loss_1, before_loss_2, sn_1, sn_2, noise_or_not, rate_schedule[epoch-1])
+                # TODO FIXED
+                before_loss_1_, before_loss_2_ = torch.tensor(before_loss_1_list).numpy().astype(float), torch.tensor(before_loss_2_list).numpy().astype(float)
+
+                before_loss_1_numpy = np.zeros((train_length, 1))
+                before_loss_2_numpy = np.zeros((train_length, 1))
+                num = before_loss_1_.shape[0]
+                before_loss_1_numpy[:num], before_loss_2_numpy[:num] = before_loss_1_[:, np.newaxis], before_loss_2_[:, np.newaxis]
+                before_loss_1 = np.concatenate((before_loss_1, before_loss_1_numpy), axis=1)
+                before_loss_2 = np.concatenate((before_loss_2, before_loss_2_numpy), axis=1)
+                # save the selection history
+                all_zero_array_1, all_zero_array_2 = np.zeros((train_length, 1)), np.zeros((train_length, 1))
+                all_zero_array_1[np.array(ind_1_update_list)] = 1
+                all_zero_array_2[np.array(ind_2_update_list)] = 1
+            
+                sn_1 += torch.from_numpy(all_zero_array_1)
+                sn_2 += torch.from_numpy(all_zero_array_2)
                     
             elif 'MIXUP' in args.exp_name:
                 global_iter, train_loss, train_acc1, train_acc5 = \
@@ -304,8 +321,8 @@ def main(args, params):
         logwriter.writerows(res_lst)
 
     # The performance on last five epochs
-    stable_acc1 = sum([x[5] for x in res_lst[-5:]]) / 5
-    stable_acc5 = sum([x[6] for x in res_lst[-5:]]) / 5
+    stable_acc1 = sum([x[4] for x in res_lst[-5:]]) / 5
+    stable_acc5 = sum([x[5] for x in res_lst[-5:]]) / 5
 
     # Val_best Test_at_val_best Stable_test_acc
     with open(os.path.join(args.log_dir, 'best_results.txt'), 'w') as outfile:
