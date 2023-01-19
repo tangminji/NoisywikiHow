@@ -11,17 +11,18 @@
 + data
     + wikihow           NoisywikiHow Dataset
         + noisy/        The input folder
-            + train.csv                         The clean train data. Format `choosen_id, step_id, cat_id, step, cat`
-            + val_test.csv                      The clean validation and test data, will split into `val.csv`, `test.csv`
+            + train.csv                         The clean training data. Format `choosen_id, step_id, cat_id, step, cat`
             + val.csv                           The clean validation data. Format `choosen_id, step_id, cat_id, step, cat`
-            + test.csv                          The clean test data. Format `choosen_id, step_id, cat_id, step, cat`
-            + mix_{0.1,0.2,0.4,0.6}.csv         NoisywikiHow Train data with noise. Format `choosen_id, step_id, noisy_id, cat_id, step, cat, noisy_step, noisy_cat, noisy_label`.
+            + test.csv                          The clean testing data. Format `choosen_id, step_id, cat_id, step, cat`
+            + mix_{0.1,0.2,0.4,0.6}.csv         **NoisywikiHow** training data with real-world label noise for main trial "Analysis the LNL methods on real-world label noise" in Section 4.2 and Section 4.4.
+                +   Format `choosen_id, step_id, noisy_id, cat_id, step, cat, noisy_step, noisy_cat, noisy_label`.
                 +   Take `(noisy_id, cat_id)` as input.
-            + sym_{0.1,0.2,0.4,0.6}.csv         Train data with symmetric noise. Format `choosen_id,step_id,cat_id,noisy_label,step,cat,noisy_cat`.
+            + sym_{0.1,0.2,0.4,0.6}.csv         Comparative training data with symmetric label noise for trial "Analysis the LNL methods on real-world label noise" in Section 4.5. 
+                +   Format `choosen_id,step_id,cat_id,noisy_label,step,cat,noisy_cat`.
                 +   Take `(step_id, noisy_label)` as input.
-            + {tail,uncommon,neighbor}_0.1.csv  Train data with different noise sources. Format is the same as `mix_0.1.csv`.
+            + {tail,uncommon,neighbor}_0.1.csv  Training data with different noise sources of real-world noise for trial "Analysis the LNL methods under different noise source" in Section 4.3.
+                +   Format is the same as `mix_0.1.csv`.
         + cat158.csv    The choosen 158 event intention classes.
-        + split_val_test.py     The code for splitting val set and test set.
 
 ### Fields description
 
@@ -54,8 +55,8 @@
 #SBATCH --gres gpu:tesla_v100-pcie-32gb:1
 #SBATCH -t 1-00:00:00
 #SBATCH --mem 20240
-#SBATCH -e output/base_nrun0.4_mix_bart.err
-#SBATCH -o output/base_nrun0.4_mix_bart.txt
+#SBATCH -e ../NoisywikiHow_output/output/base_nrun0.4_mix_bart.err
+#SBATCH -o ../NoisywikiHow_output/output/base_nrun0.4_mix_bart.txt
 
 source ~/.bashrc
 conda activate base
@@ -89,7 +90,7 @@ You can change arguments for different experiments.
     + For `'mix','sym'`, you can choose `[0.0, 0.1, 0.2, 0.4, 0.6]`.
     + For `'tail', 'uncommon', 'neighbor'`, you must choose `[0.1]`.
 + method
-    + You can choose `['base'(baseline),'mixup', 'REWEIGHT'(Data Parameters), 'SR'(Sparse Regularization), 'CT'(Co-teaching), 'SEAL']`
+    + You can choose `['base'(baseline),'mixup', 'REWEIGHT'(Data Parameters), 'SR'(Sparse Regularization), 'CT'(Co-teaching), 'SEAL','CNLCU']`
     + You can add `-lstm` at the end to use 2-layer BiLSTM instead of pretrained model to get the sentence representation。e.g. 'SR-lstm'
 + model_type
     + You can choose `['bert', 'roberta', 'xlnet', 'albert', 'bart', 'gpt2', 't5']`. Model `bart` has the best performance.

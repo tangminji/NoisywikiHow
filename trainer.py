@@ -16,6 +16,8 @@ import pandas as pd
 import os
 import csv
 
+from common.cnlcu_loss import loss_ours_hard
+
 def save_predict(save_dir, predict, epoch):
     """
     save prediction for each sample in one epoch
@@ -352,6 +354,115 @@ def train_ct(args, model1, model2, optimizer1, optimizer2, criterion1, criterion
 
     return global_iter, train_loss1.avg, correct1_1.avg, correct5_1.avg
 
+def train_cnlcu(args, model1, model2, optimizer1, optimizer2, loader, global_iter, epoch, before_loss_1, before_loss_2, sn_1, sn_2, noise_or_not, forget_rate):
+    """
+    Train 2 models for Co-teaching simultaneously, take the output of the first model as the results.
+
+    Note: We don't record loss or pred for each sample in order to save space
+    """
+    model1.train(), model2.train()
+    train_loss1 = AverageMeter('Loss', ':.4e')
+    train_loss2 = AverageMeter('Loss', ':.4e')
+    correct1_1 = AverageMeter('Acc@1', ':6.2f')
+    correct5_1 = AverageMeter('Acc@5', ':6.2f')
+    correct1_2 = AverageMeter('Acc@1', ':6.2f')
+    correct5_2 = AverageMeter('Acc@5', ':6.2f')
+    pure_1 = AverageMeter('Pure1', ':6.2f')
+    pure_2 = AverageMeter('Pure1', ':6.2f')
+
+
+    before_loss_1_new = torch.zeros(len(loader.dataset))
+    before_loss_2_new = torch.zeros(len(loader.dataset))
+    ind_1_update_list = []
+    ind_2_update_list = []
+    
+    # The small loss sample selected by models
+    small_loss1 = torch.zeros(len(loader.dataset))
+    small_loss2 = torch.zeros(len(loader.dataset))
+
+    t0 = time.time()
+    
+    for i, (data, target, index) in enumerate(loader):
+        ind = index.cpu().numpy()
+        global_iter += 1
+        args.index = index
+        data, target = {k: v.to(args.device) for k, v in data.items()}, target.to(args.device)
+        output1, output2 = model1(**data)['logits'], model2(**data)['logits']
+        # loss1, loss2 = criterion1(output1, target), criterion2(output2, target)
+
+        loss_1, loss_2, pure_ratio_1, pure_ratio_2, ind_1_update, ind_2_update, loss_1_, loss_2_ = loss_ours_hard(epoch, before_loss_1[index], before_loss_2[index], sn_1[index], sn_2[index], output1, output2, target, forget_rate, ind, noise_or_not, args.co_lambda_plan[epoch-1], 2.)
+
+        # print(loss_1, loss_2)
+        before_loss_1_new[ind] = loss_1_.detach().cpu()
+        before_loss_2_new[ind] = loss_2_.detach().cpu()
+        
+        ind_1_update_list += list(ind[ind_1_update])
+        ind_2_update_list += list(ind[ind_2_update])
+        
+        pure_1.update(100.0*pure_ratio_1.item(), len(ind_1_update))
+        pure_2.update(100.0*pure_ratio_2.item(), len(ind_2_update))
+        
+
+        optimizer1.zero_grad()
+        loss_1.backward() # F.cross_entropy use 'mean' by default
+        optimizer1.step()
+        optimizer2.zero_grad()
+        loss_2.backward()
+        optimizer2.step()
+
+        # record them
+        with torch.no_grad():
+            small_loss1[ind[ind_1_update]]=1.0
+            small_loss2[ind[ind_2_update]]=1.0
+
+        # TODO use mean, not sum
+        # loss for all data
+        loss1 = loss_1_.mean()
+        loss2 = loss_2_.mean()
+
+        train_loss1.update(loss1.item(), target.size(0))
+        acc1, acc5 = compute_topk_accuracy(output1, target, topk=(1, 5))
+        correct1_1.update(acc1[0].item(), target.size(0))
+        correct5_1.update(acc5[0].item(), target.size(0))
+
+        train_loss2.update(loss2.item(), target.size(0))
+        acc1, acc5 = compute_topk_accuracy(output2, target, topk=(1, 5))
+        correct1_2.update(acc1[0].item(), target.size(0))
+        correct5_2.update(acc5[0].item(), target.size(0))
+
+        # Log loss every few iterations
+        if i % args.print_freq == 0:
+            log_intermediate_iteration_stats(epoch, global_iter, train_loss1, top1=correct1_1, top5=correct5_1,
+                title="train_iteration_stats/net1")
+            log_intermediate_iteration_stats(epoch, global_iter, train_loss2, top1=correct1_2, top5=correct5_2,
+                title="train_iteration_stats/net2")
+
+    # Print and log stats for the epoch
+    log_value('train/net1/loss', train_loss1.avg, step=epoch)
+    log(args.logpath, 'Net1: Time for Train-Epoch-{}/{}:{:.1f}s Acc1:{}, Acc5:{}, Loss:{}\n'.
+        format(epoch, args.epochs, time.time() - t0, correct1_1.avg, correct5_1.avg, train_loss1.avg))
+
+    log_value('train/net1/accuracy_1', correct1_1.avg, step=epoch)
+    log_value('train/net1/accuracy_5', correct5_1.avg, step=epoch)
+
+    log_value('train/net2/loss', train_loss2.avg, step=epoch)
+    log(args.logpath, 'Net2: Time for Train-Epoch-{}/{}:{:.1f}s Acc1:{}, Acc5:{}, Loss:{}\n'.
+        format(epoch, args.epochs, time.time() - t0, correct1_2.avg, correct5_2.avg, train_loss2.avg))
+
+    log_value('train/net1/accuracy_1', correct1_2.avg, step=epoch)
+    log_value('train/net1/accuracy_5', correct5_2.avg, step=epoch)
+
+    # clean rate in small_loss sample
+    clean_rate1 = small_loss1[args.clean_ind].sum() / small_loss1.sum()
+    clean_rate2 = small_loss2[args.clean_ind].sum() / small_loss2.sum()
+    
+    log_value('small_loss/clean1', clean_rate1, step=epoch)
+    log_value('small_loss/clean2', clean_rate2, step=epoch)
+
+    log_value('pure/clean1', pure_1.avg, step=epoch)
+    log_value('pure/clean2', pure_2.avg, step=epoch)
+
+    return global_iter, train_loss1.avg, correct1_1.avg, correct5_1.avg, before_loss_1_new.tolist(), before_loss_2_new.tolist(), ind_1_update_list, ind_2_update_list
 
 
 # Mixup
