@@ -92,5 +92,3 @@ This dataset can be used for intent recognition tasks, where the goal is to dete
 
 ## Run baseline
 To run baseline on NoisywikiHow, you can follow the guide in [TORUN.md](TORUN.md).
-
-<style> img { display:block; float:none; margin-left:auto; margin-right:auto; } table { display:block; float:none; margin-left:auto; margin-right:auto; } </style>
