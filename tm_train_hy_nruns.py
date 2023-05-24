@@ -116,12 +116,12 @@ def configure(params):
                 params['ct_num_gradual'] = 5
             else:
                 params['ct_num_gradual'] = 3 if args.noise_mode in ['sym'] else 8
-            params['co_lambda'] = 1e-1 if args.noise_mode in ['sym'] else 5e-2
+            params['co_lambda'] = 1e-1 if args.noise_mode in ['sym'] else 3e-1
         args.forget_rate = params.get('forget_rate')
         args.ct_num_gradual = params['ct_num_gradual']
         args.exponent = params.get('exponent', 1) # linear change
         args.co_lambda = params.get('co_lambda',args.co_lambda)
-        # args.co_lambda:  [5e-1,3e-1,1e-1,5e-2,3e-2,1e-2,1e-3,1e-4], best 1e-1/5e-2
+        # args.co_lambda:  [5e-1,3e-1,1e-1,5e-2,3e-2,1e-2,1e-3,1e-4], best 1e-1/3e-1
     
     if not os.path.exists(args.exp_name):
         os.makedirs(args.exp_name)
