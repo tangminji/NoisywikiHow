@@ -1,4 +1,4 @@
-# NoisywikiHow
+# Running Guide For NoisywikiHow
 
 ## Code
 + tm_train_hy_nrums.py  The entry code. Set the Optimal parameters for each methods.
@@ -8,6 +8,7 @@
 + data/wiki_dataset.py  Dataloader and Models for experiments.
 
 ## Data
+### Structure
 + data
     + wikihow           NoisywikiHow Dataset
         + noisy/        The input folder
@@ -29,15 +30,15 @@
 | Field         | Description                                                  |
 | ------------- | ------------------------------------------------------------ |
 | `choosen_id`  | **global id** for this sample. range from 0~89142            |
-| `step`        | The real step text.                                          |
+| `step`        | **The procedual event.** The real step text.                 |
 | `step_id`     | The id for `step`                                            |
-| `cat`         | The real event intention category text.                      |
+| `cat`         | A plausible **intention** toward the event. TheThe real event intention category text. |
 | `cat_id`      | The id for `cat`                                             |
 | `noisy_step`  | The **corrupted** step text with **certain noise rate**. It may be agree with `step`,  may not either. |
 | `noisy_cat`   | For noise on labels(`sym`, etc.):  The **corrupted** event intention label with **certain noise rate**. It may be agree with `cat`,  may not either.<br />For similar noisy steps(`mix`,`tail`,`uncommon`,`neighbor`):  The event intention category correspond to `noisy step`. |
 | `noisy_label` | The id for `noisy_cat`. `-1` for the category out of given 158 classes (OOV class). |
     
-## Running
+## Running Setting
 + bart, tesla_v100-pcie-32gb, batch_size=32: 2.5h/10epochs
     + Co-teaching: 4h/10epochs, SEAL run 40epochs
 + lstm, tesla_v100-pcie-32gb, batch_size=32: 0.25h/10epochs
