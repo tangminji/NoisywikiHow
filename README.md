@@ -89,3 +89,6 @@ This dataset can be used for intent recognition tasks, where the goal is to dete
   although they are all from real-world noise.
 + Few LNL methods can effectively combat real-world noise and synthetic noise at the same time.
 + The model trained under the real-world label noise has better generalization performance.
+
+## Run baseline
+To run baseline on NoisywikiHow, you can follow the guide in [TORUN.md](TORUN.md).
