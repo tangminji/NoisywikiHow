@@ -46,7 +46,7 @@ This dataset can be used for intent recognition tasks, where the goal is to dete
    + BCC: categories beyond the commonsense
    + TC: tail categories
 
-![image-20230524214114558](pic/noice_sources.png)
+   ![image-20230524214114558](pic/noice_sources.png)
 
 ## Results
 
@@ -79,7 +79,7 @@ This dataset can be used for intent recognition tasks, where the goal is to dete
 
  4. Real-world Noise vs. Synthetic Noise
 
-    ![image-20230524215107605](pic/Fig4.png)
+   ![image-20230524215107605](pic/Fig4.png)
 
 ## New Findings
 
@@ -92,3 +92,5 @@ This dataset can be used for intent recognition tasks, where the goal is to dete
 
 ## Run baseline
 To run baseline on NoisywikiHow, you can follow the guide in [TORUN.md](TORUN.md).
+
+<style> img { display:block; float:none; margin-left:auto; margin-right:auto; } table { display:block; float:none; margin-left:auto; margin-right:auto; } </style>
