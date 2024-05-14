@@ -92,3 +92,28 @@ This dataset can be used for intent recognition tasks, where the goal is to dete
 
 ## Run baseline
 To run baseline on NoisywikiHow, you can follow the guide in [TORUN.md](TORUN.md).
+
+## Citation
+If you find this code useful in your research then please cite:
+```
+@inproceedings{wu-etal-2023-noisywikihow,
+    title = "{N}oisywiki{H}ow: A Benchmark for Learning with Real-world Noisy Labels in Natural Language Processing",
+    author = "Wu, Tingting  and
+      Ding, Xiao  and
+      Tang, Minji  and
+      Zhang, Hao  and
+      Qin, Bing  and
+      Liu, Ting",
+    editor = "Rogers, Anna  and
+      Boyd-Graber, Jordan  and
+      Okazaki, Naoaki",
+    booktitle = "Findings of the Association for Computational Linguistics: ACL 2023",
+    month = jul,
+    year = "2023",
+    address = "Toronto, Canada",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2023.findings-acl.299",
+    doi = "10.18653/v1/2023.findings-acl.299",
+    pages = "4856--4873",
+}
+```
